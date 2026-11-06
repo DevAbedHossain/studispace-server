@@ -35,9 +35,25 @@ app.get("/studios", async (req, res) => {
     res.send(result);
 })
 
+app.post("/studios", async (req, res) => {
+    const newStudio = req.body;
+    const result = await studioCollection.insertOne(newStudio);
+    res.send(result);
+})
+
 app.get("/studios/:id", async (req, res) => {
     const { id } = req.params;
     const result = await studioCollection.findOne({ _id: new ObjectId(id) });
+    res.send(result);
+})
+
+app.patch("/studios/:id", async (req, res) => {
+    const { id } = req.params;
+    const updateData = req.body;
+    const result = await studioCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updateData }
+    )
     res.send(result);
 })
 
@@ -56,3 +72,5 @@ app.get("/studios/owner/:ownerEmail", async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`)
 })
+
+export default app;
