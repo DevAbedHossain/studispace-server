@@ -41,6 +41,12 @@ app.post("/studios", async (req, res) => {
     res.send(result);
 })
 
+app.delete("/studios/:id", async (req, res) => {
+    const { id } = req.params;
+    const result = await studioCollection.deleteOne({ _id: new ObjectId(id) });
+    res.send(result);
+})
+
 app.get("/studios/:id", async (req, res) => {
     const { id } = req.params;
     const result = await studioCollection.findOne({ _id: new ObjectId(id) });
