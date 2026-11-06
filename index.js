@@ -82,6 +82,18 @@ app.post("/booking", async (req, res) => {
     res.send(result);
 })
 
+app.get("/booking/:userEmail", async (req, res) => {
+    const { userEmail } = req.params;
+    const result = await bookingCollection.find({ userEmail: userEmail }).toArray();
+    res.send(result);
+})
+
+app.delete("/booking/:id", async (req, res) => {
+    const { id } = req.params;
+    const result = await bookingCollection.deleteOne({ _id: new ObjectId(id) });
+    res.send(result);
+})
+
 app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`)
 })
