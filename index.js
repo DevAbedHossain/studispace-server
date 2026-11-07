@@ -2,6 +2,7 @@ import exporess from "express";
 import { MongoClient, ObjectId } from 'mongodb';
 import 'dotenv/config';
 import cors from "cors";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 
 const app = exporess();
@@ -27,6 +28,29 @@ const db = mongoDBClient.db('studiospace');
 const studioCollection = db.collection("studios");
 const bookingCollection = db.collection("booking");
 
+const vefiryToken = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+        return res.status(401).send({ message: "Unathorize!" })
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    if (!token) {
+        return res.status(401).send({ message: "Unauthorize!" })
+    }
+
+    const JWKS = createRemoteJWKSet(new URL("http://localhost:3000/api/auth/jwks"));
+
+    try {
+        const { payload } = await jwtVerify(token, JWKS);
+        next();
+    } catch (error) {
+        return res.status(500).send({ message: "Server Error!" })
+    }
+}
+
 app.get("/", (req, res) => {
     res.send("Hello world in back end")
 })
@@ -36,13 +60,13 @@ app.get("/studios", async (req, res) => {
     res.send(result);
 })
 
-app.post("/studios", async (req, res) => {
+app.post("/studios", vefiryToken, async (req, res) => {
     const newStudio = req.body;
     const result = await studioCollection.insertOne(newStudio);
     res.send(result);
 })
 
-app.delete("/studios/:id", async (req, res) => {
+app.delete("/studios/:id", vefiryToken, async (req, res) => {
     const { id } = req.params;
     const result = await studioCollection.deleteOne({ _id: new ObjectId(id) });
     res.send(result);
@@ -54,7 +78,7 @@ app.get("/studios/:id", async (req, res) => {
     res.send(result);
 })
 
-app.patch("/studios/:id", async (req, res) => {
+app.patch("/studios/:id", vefiryToken, async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
     const result = await studioCollection.updateOne(
@@ -64,31 +88,31 @@ app.patch("/studios/:id", async (req, res) => {
     res.send(result);
 })
 
-app.get("/studios/category/:category", async (req, res) => {
+app.get("/studios/category/:category", vefiryToken, async (req, res) => {
     const { category } = req.params;
     const result = await studioCollection.find({ category: category }).toArray();
     res.send(result);
 })
 
-app.get("/studios/owner/:ownerEmail", async (req, res) => {
+app.get("/studios/owner/:ownerEmail", vefiryToken, async (req, res) => {
     const { ownerEmail } = req.params;
     const result = await studioCollection.find({ ownerEmail: ownerEmail }).toArray();
     res.send(result);
 })
 
-app.post("/booking", async (req, res) => {
+app.post("/booking", vefiryToken, async (req, res) => {
     const newBooking = req.body;
     const result = await bookingCollection.insertOne(newBooking);
     res.send(result);
 })
 
-app.get("/booking/:userEmail", async (req, res) => {
+app.get("/booking/:userEmail", vefiryToken, async (req, res) => {
     const { userEmail } = req.params;
     const result = await bookingCollection.find({ userEmail: userEmail }).toArray();
     res.send(result);
 })
 
-app.delete("/booking/:id", async (req, res) => {
+app.delete("/booking/:id", vefiryToken, async (req, res) => {
     const { id } = req.params;
     const result = await bookingCollection.deleteOne({ _id: new ObjectId(id) });
     res.send(result);
