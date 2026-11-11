@@ -28,6 +28,8 @@ const db = mongoDBClient.db('studiospace');
 const studioCollection = db.collection("studios");
 const bookingCollection = db.collection("booking");
 
+const JWKS = createRemoteJWKSet(new URL(`${process.env.CLIENT_SERVER_URL}/api/auth/jwks`));
+
 const vefiryToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
@@ -37,17 +39,16 @@ const vefiryToken = async (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    if (!token) {
+    if (!token || token === "undefined") {
         return res.status(401).send({ message: "Unauthorize!" })
     }
-
-    const JWKS = createRemoteJWKSet(new URL(`${process.env.CLIENT_SERVER_URL}/api/auth/jwks`));
 
     try {
         const { payload } = await jwtVerify(token, JWKS);
         next();
     } catch (error) {
-        return res.status(500).send({ message: "Server Error!" })
+        console.error("Token verification failed:", error?.message);
+        return res.status(401).send({ message: "Unauthorize!" })
     }
 }
 
@@ -101,8 +102,13 @@ app.get("/studios/owner/:ownerEmail", vefiryToken, async (req, res) => {
 })
 
 app.post("/booking", vefiryToken, async (req, res) => {
-    const newBooking = req.body;
-    const result = await bookingCollection.insertOne(newBooking);
+    // Never trust a client-supplied _id — let MongoDB generate the booking's own id.
+    const { _id, createdAt, updatedAt, ...newBooking } = req.body;
+    const result = await bookingCollection.insertOne({
+        ...newBooking,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    });
     res.send(result);
 })
 
@@ -114,9 +120,20 @@ app.get("/booking/:userEmail", vefiryToken, async (req, res) => {
 
 app.delete("/booking/:id", vefiryToken, async (req, res) => {
     const { id } = req.params;
-    const result = await bookingCollection.deleteOne({ _id: new ObjectId(id) });
+    // Older bookings stored their _id as a plain string (copied from the
+    // client payload), newer ones use a real ObjectId — match both.
+    const candidates = [{ _id: id }];
+    if (ObjectId.isValid(id)) candidates.push({ _id: new ObjectId(id) });
+    const result = await bookingCollection.deleteOne({ $or: candidates });
     res.send(result);
 })
+
+app.use((err, req, res, next) => {
+    console.error("Unhandled error:", err);
+    res.status(err?.status || err?.statusCode || 500).json({
+        message: err?.message || "Internal Server Error"
+    });
+});
 
 app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`)
