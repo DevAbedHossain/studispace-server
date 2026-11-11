@@ -6,7 +6,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 
 
 const app = exporess();
-const PORT = 8000;
+const PORT = process.env.SERVER_URL || 800;
 
 app.use(cors())
 app.use(exporess.json())
@@ -89,7 +89,7 @@ app.patch("/studios/:id", vefiryToken, async (req, res) => {
     res.send(result);
 })
 
-app.get("/studios/category/:category", vefiryToken, async (req, res) => {
+app.get("/studios/category/:category", async (req, res) => {
     const { category } = req.params;
     const result = await studioCollection.find({ category: category }).toArray();
     res.send(result);
